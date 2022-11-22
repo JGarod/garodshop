@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class ProductsService {
@@ -36,9 +37,14 @@ export class ProductsService {
 
   }
 
-  async findAll() {
+  async findAll(paginationDto:PaginationDto) {
     try {
-      const searchAllProducts = await this.ProductRepository.find({})
+
+      const {limit=10,offset=0} = paginationDto
+      const searchAllProducts = await this.ProductRepository.find({
+        take:limit,
+        skip:offset
+      })
       return searchAllProducts;
     } catch (error) {
       this.HandleDBExceptions(error)
@@ -59,7 +65,7 @@ export class ProductsService {
 
   async findSlug(slug: string) {
     try {
-      const searchSlug = this.ProductRepository.find({
+      const searchSlug = await this.ProductRepository.find({
         where: {
             slug: slug,
         },
@@ -72,7 +78,9 @@ export class ProductsService {
           gender:true
         }
     })
-
+    if (searchSlug.length===0) return new NotFoundException("Producto no encontrado")
+      
+    
     return searchSlug;
     } catch (error) {
       this.HandleDBExceptions(error)
@@ -80,8 +88,28 @@ export class ProductsService {
   }
 
 
-  update(id: number, updateProductDto: UpdateProductDto) {
-    return `This action updates a #${id} product`;
+  async update(id: string, updateProductDto: UpdateProductDto) {
+
+    const updateProduct = await this.ProductRepository.preload({
+      id:id,
+      ...updateProductDto
+    })
+    const {title,gender} = updateProduct;
+      const banco = "abcdefghijklmnopqrstuvwxyz0123456789";
+      let aleatoria = "";
+      for (let i = 0; i < 5; i++) {
+          aleatoria += banco.charAt(Math.floor(Math.random() * banco.length));
+      }
+      const total = gender+"-"+title.toLowerCase().split(' ').join('-')+"-"+aleatoria;
+      updateProduct.slug=total;
+
+    if (!updateProduct) throw new NotFoundException("Product not found")
+
+   try {
+    return await this.ProductRepository.save(updateProduct)
+   } catch (error) {
+    this.HandleDBExceptions(error)
+   }
   }
 
   async remove(id: string) {
