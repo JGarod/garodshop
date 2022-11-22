@@ -1,0 +1,13 @@
+version: '3'
+services:
+  db:
+    image: postgres:14.3
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: garodshopdb
+    container_name: garodshop
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
